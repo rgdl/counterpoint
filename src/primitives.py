@@ -4,8 +4,9 @@ import numpy as np
 
 from . import constants
 
-# All rules here:
-# /Users/robertdelisle/Documents/Gradus Ad Parnassum Summarised.docx
+
+# All rules here (my local machine):
+# ~/Documents/Gradus Ad Parnassum Summarised.docx
 
 
 class Arrangement:
@@ -13,7 +14,18 @@ class Arrangement:
         # Use the arguments to generate a numpy matrix.
         # Rows are voices, columns are time steps
         # Cantus firmus, if supplied, should be inserted into one row
+        if cantus_firmus is not None:
+            n_time_steps = len(cantus_firmus.notes) * species.steps_per_bar
+            self._notes = np.empty([n_voices, n_time_steps], np.int8)
+            self._notes[cantus_firmus.voice, :] = cantus_firmus.note_numbers
+            self.cantus_firmus = cantus_firmus
+        else:
+            raise NotImplemented
+
+    def insert_voice(self, index, notes):
         pass
+
+    def __repr__(self):
 
 
 class Mode:
@@ -61,19 +73,15 @@ class Motion:
     CONTRARY = 'CONTRARY'
 
 
-class Species:
-    FIRST = 'FIRST'
-    SECOND = 'SECOND'
-    THIRD = 'THIRD'
-    FOURTH = 'FOURTH'
-    FLORID = 'FLORID'
-
-
 class Tie:
     pass
 
 
 class Note:
+    NOTE_NUMBERS = range(128)
+    OCTAVES = range(-1, 10)
+    NOTE_NAMES = ('C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B')
+
     def __init__(self, note_name=None, octave=None, note_number=None):
         assert any([
             note_name is None and octave is None and note_number in constants.NOTE_NUMBERS,

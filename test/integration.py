@@ -1,14 +1,14 @@
 import unittest
 
 from ..src.primitives import Arrangement, Note
-from ..src.primitives import Species
+from ..src.species import FirstSpecies
 from ..src.cantus_firmi import CantusFirmus
 
 
 class FuxExampleTestCase(unittest.TestCase):
     def test_first_fux_example_is_valid(self):
         dorian_cf = CantusFirmus('dorian', voice=0)
-        arrangement = Arrangement(2, Species.FIRST, cantus_firmus=dorian_cf)
+        arrangement = Arrangement(2, FirstSpecies, cantus_firmus=dorian_cf)
         arrangement.insert_voice(
             1,
             [
