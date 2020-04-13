@@ -7,3 +7,8 @@ Goals:
 - To algorithically generate counterpoint or harmonies more generally 
 
 🚧 Still a bit of a construction site! 🚧
+
+Trying this coding approach:
+ - Write a fairly ambitious integration test
+ - Rapidly write the required code [CURRENT STEP!]
+ - Get that code working with the aid of unit tests at each of the points where it doesn't work straight up. 

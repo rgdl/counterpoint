@@ -10,22 +10,34 @@ from . import constants
 
 
 class Arrangement:
-    def __init__(self, n_voices, species, cantus_firmus=None):
+    def __init__(self, n_voices, species, cantus_firmus=None, cantus_firmus_voice_index=None):
         # Use the arguments to generate a numpy matrix.
         # Rows are voices, columns are time steps
         # Cantus firmus, if supplied, should be inserted into one row
         if cantus_firmus is not None:
             n_time_steps = len(cantus_firmus.notes) * species.steps_per_bar
-            self._notes = np.empty([n_voices, n_time_steps], np.int8)
-            self._notes[cantus_firmus.voice, :] = cantus_firmus.note_numbers
+            self.notes = np.empty([n_voices, n_time_steps], np.int8)
+            self.notes[cantus_firmus_voice_index, :] = cantus_firmus.note_numbers
             self.cantus_firmus = cantus_firmus
+            self.cantus_firmus_voice_index = cantus_firmus_voice_index
         else:
             raise NotImplemented
 
-    def insert_voice(self, index, notes):
-        pass
+    def insert_voice(self, voice_index, voice):
+        if voice_index == self.cantus_firmus_voice_index:
+            raise IndexError("Can't overwrite Cantus Firmus")
+        self.notes[voice_index, :] = voice.note_numbers
+
+    def validate(self):
+        """
+        Apply all rules in the species.
+
+        For each time step in the arrangement, we should have a RuleSet, which is all rules that could apply, and which
+        of them are broken. A RuleSet is truthy for a given time step if no rules are broken.
+        """
 
     def __repr__(self):
+        return str(self.notes)
 
 
 class Mode:
@@ -92,3 +104,15 @@ class Note:
             self.note_number = note_number
         else:
             self.note_number = constants.get_note_number(note_name, octave)
+
+
+class RuleSet:
+    def __init__(self, rules):
+        self.rules = rules
+
+    def __bool__(self):
+        return all(self.rules)
+
+
+class Rule:
+    pass
