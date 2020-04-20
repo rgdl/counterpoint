@@ -11,17 +11,23 @@ class Rule(abc.ABC):
     Atomic Rules can be composed to create more complex rules
 
     Initialised from a function, which contains the actual logic
+
+    A rule often applies to a specific number of voices (e.g. things about intervals for 2 voices)
+    If not (e.g. FirstHarmony), leave `n_voices` == None
     """
+    n_voices = None
 
     @abc.abstractmethod
     def logic(self, arrangement: Arrangement, voices: Tuple[int], time_step: int):
-        raise NotImplemented
+        raise NotImplementedError
 
     def __call__(self, arrangement: Arrangement, voices: Tuple[int], time_step: int) -> bool:
         """
         This method enforces that the `logic` function behaves as expected and is being given correct inputs
         """
         assert all([
+            hasattr(self, 'n_voices'),
+            getattr(self, 'n_voices', len(voices)) == len(voices),
             isinstance(arrangement, Arrangement),
             isinstance(voices, tuple),
             all([isinstance(v, int) for v in voices]),
@@ -36,28 +42,28 @@ class Rule(abc.ABC):
             def logic(self, *args, **kwargs):
                 return self(*args, **kwargs) or other(*args, **kwargs)
 
-        return NewRule
+        return NewRule()
 
     def __and__(self, other):
         class NewRule(Rule):
             def logic(self, *args, **kwargs):
                 return self(*args, **kwargs) and other(*args, **kwargs)
 
-        return NewRule
+        return NewRule()
 
     def __xor__(self, other):
         class NewRule(Rule):
             def logic(self, *args, **kwargs):
                 return self(*args, **kwargs) != other(*args, **kwargs)
 
-        return NewRule
+        return NewRule()
 
     def __invert__(self):
         class NewRule(Rule):
             def logic(self, *args, **kwargs):
                 return not self(*args, **kwargs)
 
-        return NewRule
+        return NewRule()
 
 
 if __name__ == '__main__':

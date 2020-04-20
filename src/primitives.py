@@ -1,5 +1,7 @@
 # TODO: some of these are more "data" than "code"
 # TODO: as an integration test, represent a correct example and an incorrect example from the book
+import itertools
+
 import numpy as np
 
 from . import constants
@@ -10,13 +12,15 @@ from . import constants
 
 
 class Arrangement:
-    def __init__(self, n_voices, species, cantus_firmus=None, cantus_firmus_voice_index=None):
+    def __init__(self, species_and_voices, cantus_firmus=None, cantus_firmus_voice_index=None):
         # Use the arguments to generate a numpy matrix.
         # Rows are voices, columns are time steps
         # Cantus firmus, if supplied, should be inserted into one row
+        self.species_and_voices = species_and_voices
+
         if cantus_firmus is not None:
-            n_time_steps = len(cantus_firmus.notes) * species.steps_per_bar
-            self.notes = np.empty([n_voices, n_time_steps], np.int8)
+            self.n_time_steps = len(cantus_firmus.notes) * species_and_voices.steps_per_bar
+            self.notes = np.empty([species_and_voices.n_voices, self.n_time_steps], np.int8)
             self.notes[cantus_firmus_voice_index, :] = cantus_firmus.note_numbers
             self.cantus_firmus = cantus_firmus
             self.cantus_firmus_voice_index = cantus_firmus_voice_index
@@ -32,9 +36,20 @@ class Arrangement:
         """
         Apply all rules in the species.
 
-        For each time step in the arrangement, we should have a RuleSet, which is all rules that could apply, and which
-        of them are broken. A RuleSet is truthy for a given time step if no rules are broken.
+        Should return a 2D array of some kind of collected results.
+        Probably a class that has all rules and whether they were passed or not.
+        __bool__ method returns True iff all tests passed
         """
+        for (description, rule), time_step in itertools.product(
+            self.species_and_voices.items(),
+            range(self.n_time_steps),
+        ):
+            if rule.n_voices is None:
+                voices = tuple(range(self.species_and_voices.n_voices))
+                rule(self, voices, time_step)
+
+            # for n_voices in list(range(1, self.species_and_voices.n_voices)) + [None]:
+            #     if rule.n_voices == n_voices:
 
     def __repr__(self):
         return str(self.notes)
@@ -58,7 +73,7 @@ class TimeUnit:
 
 
 class Voice:
-    # TODO:
+    # TODO: Maybe be don't actually need this class?
     # there should be an Arrangement that wraps a numpy matrix.
     # then a Voice just needs a reference to the arrangement and a row number
     # A lot of the logic could then be handled by matrix algebra, including finding errors

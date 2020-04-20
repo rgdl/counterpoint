@@ -16,11 +16,12 @@ class _BaseIntervalRule(Rule):
     """
     N.B.: doesn't distinguish unisons from octaves
     """
+    n_voices = 2
+
     def get_relevant_intervals(self):
         raise NotImplementedError
 
     def logic(self, arrangement, voices, time_step):
-        assert len(voices) == 2
         lower_note = arrangement.notes[voices, time_step].min()
         upper_note = arrangement.notes[voices, time_step].max()
 
@@ -49,6 +50,8 @@ class Unison(Rule):
     """
     Specific check, because usual treatment doesn't distinguish it from an octave
     """
+    n_voices = 2
+
     def logic(self, arrangement, voices, time_step):
         assert len(voices) == 2
         return arrangement.notes[voices[0], time_step] == arrangement.notes[voices[1], time_step]
@@ -58,8 +61,9 @@ class Octave(Rule):
     """
     Specific check, because usual treatment doesn't distinguish it from a unison
     """
+    n_voices = 2
+
     def logic(self, arrangement, voices, time_step):
-        assert len(voices) == 2
         lower_note = arrangement.notes[voices, time_step].min()
         upper_note = arrangement.notes[voices, time_step].max()
         return (upper_note > lower_note) and ((upper_note - lower_note) % 12) == 0
@@ -81,13 +85,15 @@ class DissonantInterval(_BaseIntervalRule):
 
 
 class _BaseMotionRule(Rule):
+    n_voices = 2
+
     @abc.abstractmethod
-    def check_motion_product(self, product):
+    def compare_motion(self, first_voice_motion, second_voice_motion):
         raise NotImplemented
 
     def logic(self, arrangement, voices, time_step):
-        assert len(voices) == 2
-        assert time_step > 0
+        if time_step == 0:
+            return False
 
         first_voice_motion = arrangement.notes[voices[0], time_step] - arrangement.notes[voices[0], time_step - 1]
         second_voice_motion = arrangement.notes[voices[1], time_step] - arrangement.notes[voices[1], time_step - 1]
@@ -110,18 +116,34 @@ class ContraryMotion(_BaseMotionRule):
         return first_voice_motion * second_voice_motion < 0
 
 
-class InwardMotion(_BaseMotionRule):
-    def compare_motion(self, first_voice_motion, second_voice_motion):
-        return first_voice_motion * second_voice_motion < 0
+class InwardMotion(Rule):
+    n_voices = 2
+
+    def logic(self, arrangement, voices, time_step):
+        if time_step == 0:
+            return False
+
+        both_time_steps = [time_step, time_step - 1]
+        first_voice_lower = (
+            arrangement.notes[voices[1], both_time_steps] > arrangement.notes[voices[0], both_time_steps]
+        ).all()
+        if not first_voice_lower:
+            return False
+
+        first_voice_motion = arrangement.notes[voices[0], time_step] - arrangement.notes[voices[0], time_step - 1]
+        second_voice_motion = arrangement.notes[voices[1], time_step] - arrangement.notes[voices[1], time_step - 1]
+
+        return (first_voice_motion > 0) and (second_voice_motion < 0)
 
 
 class NoteRepeated(Rule):
+    n_voices = 1
+
     def __init__(self, times_used):
         self.times_used = times_used
 
     def logic(self, arrangement, voices, time_step):
         # TODO: might need child class for Rule that say whether they apply to single voices, pairs of voices, etc.
-        assert len(voices) == 1
         voice = voices[0]
 
         if time_step < self.times_used - 1:
@@ -155,7 +177,15 @@ class CantusFirmusInLowerVoice(Rule):
 
 
 # Start defining rules per species
-class FirstSpeciesTwoVoices:
+
+class SpeciesAndVoices(abc.ABC):
+    pass
+
+
+class FirstSpeciesTwoVoices(SpeciesAndVoices):
+    n_voices = 2
+    steps_per_bar = 1
+
     rules = {
         'No direct motion to a perfect interval': ~(DirectMotion() & PerfectInterval()),
         'No dissonance at all': ~DissonantInterval(),
@@ -171,7 +201,7 @@ class FirstSpeciesTwoVoices:
 
     # Things that don't mark it as a failure, but should be avoided if possible
     preferences = {
-        # TODO: Implement "Avoid octava Battuta"
+        'Avoid Octava Battuta': ~(InwardMotion() & Octave()),
         'Prefer contrary and oblique motion': ContraryMotion() | ObliqueMotion(),
         'Prefer imperfect consonances': ImperfectConsonance(),
     }
