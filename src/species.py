@@ -24,7 +24,6 @@ class _BaseIntervalRule(Rule):
     def logic(self, arrangement, voices, time_step):
         lower_note = arrangement.notes[voices, time_step].min()
         upper_note = arrangement.notes[voices, time_step].max()
-
         return (upper_note - lower_note) % 12 in self.get_relevant_intervals()
 
 
@@ -43,7 +42,7 @@ class SpecificInterval(_BaseIntervalRule):
         self._interval_of_interest = interval_of_interest
 
     def get_relevant_intervals(self):
-        return self._interval_of_interest
+        return self._interval_of_interest,
 
 
 class Unison(Rule):
@@ -54,7 +53,7 @@ class Unison(Rule):
 
     def logic(self, arrangement, voices, time_step):
         assert len(voices) == 2
-        return arrangement.notes[voices[0], time_step] == arrangement.notes[voices[1], time_step]
+        return bool(arrangement.notes[voices[0], time_step] == arrangement.notes[voices[1], time_step])
 
 
 class Octave(Rule):
@@ -66,7 +65,7 @@ class Octave(Rule):
     def logic(self, arrangement, voices, time_step):
         lower_note = arrangement.notes[voices, time_step].min()
         upper_note = arrangement.notes[voices, time_step].max()
-        return (upper_note > lower_note) and ((upper_note - lower_note) % 12) == 0
+        return bool((upper_note > lower_note) and ((upper_note - lower_note) % 12) == 0)
 
 
 class DissonantInterval(_BaseIntervalRule):
@@ -98,7 +97,7 @@ class _BaseMotionRule(Rule):
         first_voice_motion = arrangement.notes[voices[0], time_step] - arrangement.notes[voices[0], time_step - 1]
         second_voice_motion = arrangement.notes[voices[1], time_step] - arrangement.notes[voices[1], time_step - 1]
 
-        return self.compare_motion(first_voice_motion, second_voice_motion)
+        return bool(self.compare_motion(first_voice_motion, second_voice_motion))
 
 
 class DirectMotion(_BaseMotionRule):
@@ -143,13 +142,12 @@ class NoteRepeated(Rule):
         self.times_used = times_used
 
     def logic(self, arrangement, voices, time_step):
-        # TODO: might need child class for Rule that say whether they apply to single voices, pairs of voices, etc.
         voice = voices[0]
 
         if time_step < self.times_used - 1:
             return False
         # TODO: this should have a unit test, because the number of steps calculation would be easy to get wrong
-        return arrangement.notes[voice, (time_step - self.times_used):time_step]
+        return len(set(arrangement.notes[voice, (max(time_step - self.times_used, 0)):time_step])) == 1
 
 # When in the arrangement?
 
@@ -161,12 +159,12 @@ class FirstHarmony(Rule):
 
 class LastHarmony(Rule):
     def logic(self, arrangement, voices, time_step):
-        return time_step == arrangement.time_steps - 1
+        return time_step == arrangement.n_time_steps - 1
 
 
 class SecondLastHarmony(Rule):
     def logic(self, arrangement, voices, time_step):
-        return time_step == arrangement.time_steps - 2
+        return time_step == arrangement.n_time_steps - 2
 
 
 # Specifics about arrangement

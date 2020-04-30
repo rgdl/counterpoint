@@ -1,5 +1,3 @@
-# TODO: some of these are more "data" than "code"
-# TODO: as an integration test, represent a correct example and an incorrect example from the book
 import itertools
 
 import numpy as np
@@ -9,6 +7,50 @@ from . import constants
 
 # All rules here (my local machine):
 # ~/Documents/Gradus Ad Parnassum Summarised.docx
+
+
+class StepResult:
+    """
+    Collects the results of applying all rules at a given step
+    """
+    def __init__(self, step):
+        self.step = step
+        self._rule_results = []
+
+    def push(self, description, rule, voices, rule_passed):
+        self._rule_results.append(
+            {
+                'description': description,
+                'rule': rule,
+                'voices': voices,
+                'rule_passed': rule_passed,
+            }
+        )
+
+    def __bool__(self):
+        return all([result['rule_passed'] for result in self._rule_results])
+
+
+class ArrangementResult:
+    """
+    Collects a `StepResult` at each step of an `Arrangement`
+    """
+    def __init__(self, arrangement):
+        self.arrangement = arrangement
+        self._step_results = {}
+
+    def __bool__(self):
+        return all([step_result for step_result in self._step_results])
+
+    def __getitem__(self, step):
+        print('self._step_results =', self._step_results)
+        return self._step_results.get(step, StepResult(step))
+
+    def __repr__(self):
+        return str(self._step_results)
+
+    def is_empty(self):
+        return self._step_results == {}
 
 
 class Arrangement:
@@ -40,16 +82,25 @@ class Arrangement:
         Probably a class that has all rules and whether they were passed or not.
         __bool__ method returns True iff all tests passed
         """
+
+        result = ArrangementResult(self)
+        voices = tuple(range(self.species_and_voices.n_voices))
+
         for (description, rule), time_step in itertools.product(
-            self.species_and_voices.items(),
+            self.species_and_voices.rules.items(),
             range(self.n_time_steps),
         ):
             if rule.n_voices is None:
-                voices = tuple(range(self.species_and_voices.n_voices))
-                rule(self, voices, time_step)
+                # TODO: what does n_voices == None actually mean?
+                result[time_step].push(description, rule, voices, rule(self, voices, time_step))
+                raise Exception('I am not sure what n_voices == None means. When is it appropriate?')
 
-            # for n_voices in list(range(1, self.species_and_voices.n_voices)) + [None]:
-            #     if rule.n_voices == n_voices:
+            for n_voices in list(range(1, self.species_and_voices.n_voices + 1)):
+                for voices in itertools.combinations(voices, n_voices):
+                    if rule.n_voices == n_voices:
+                        result[time_step].push(description, rule, voices, rule(self, voices, time_step))
+
+        return result
 
     def __repr__(self):
         return str(self.notes)
@@ -119,15 +170,3 @@ class Note:
             self.note_number = note_number
         else:
             self.note_number = constants.get_note_number(note_name, octave)
-
-
-class RuleSet:
-    def __init__(self, rules):
-        self.rules = rules
-
-    def __bool__(self):
-        return all(self.rules)
-
-
-class Rule:
-    pass

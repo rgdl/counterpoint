@@ -25,43 +25,76 @@ class Rule(abc.ABC):
         """
         This method enforces that the `logic` function behaves as expected and is being given correct inputs
         """
-        assert all([
-            hasattr(self, 'n_voices'),
-            getattr(self, 'n_voices', len(voices)) == len(voices),
-            isinstance(arrangement, Arrangement),
-            isinstance(voices, tuple),
-            all([isinstance(v, int) for v in voices]),
-            isinstance(time_step, int),
-        ])
+
+        assert hasattr(self, 'n_voices'), 'A rule must know how many voices there are'
+        try:
+            assert getattr(self, 'n_voices') is None or getattr(self, 'n_voices') == len(voices), f'Wrong number of voices provided: {self.n_voices} != {len(voices)}'
+        except Exception:
+            print('here')
+        assert arrangement.__class__.__name__ == 'Arrangement', f'`arrangement` should be class Arrangement, instead it\'s: {type(arrangement)}'
+        assert isinstance(voices, tuple), '`voices` should be a tuple'
+        assert all([isinstance(v, int) for v in voices]), '`voices` should be a tuple of integers'
+        assert isinstance(time_step, int), '`time_step` should be an integer'
+
         result = self.logic(arrangement=arrangement, voices=voices, time_step=time_step)
-        assert isinstance(result, bool)
+        try:
+            assert isinstance(result, bool), 'The result of applying a rule should be a boolean'
+        except Exception:
+            print('here')
+
         return result
 
+    def _combine_n_voices(self, other):
+        if self.n_voices is None and other.n_voices is None:
+            return None
+        if self.n_voices is not None and other.n_voices is not None:
+            assert self.n_voices == other.n_voices, 'Rules with incompatible numbers of voices can\'t be combined'
+            return self.n_voices
+        if self.n_voices is not None:
+            return self.n_voices
+        return other.n_voices
+
     def __or__(self, other):
+        original = self
+
         class NewRule(Rule):
+            n_voices = original._combine_n_voices(other)
+
             def logic(self, *args, **kwargs):
-                return self(*args, **kwargs) or other(*args, **kwargs)
+                return original(*args, **kwargs) or other(*args, **kwargs)
 
         return NewRule()
 
     def __and__(self, other):
+        original = self
+
         class NewRule(Rule):
+            n_voices = original._combine_n_voices(other)
+
             def logic(self, *args, **kwargs):
-                return self(*args, **kwargs) and other(*args, **kwargs)
+                return original(*args, **kwargs) and other(*args, **kwargs)
 
         return NewRule()
 
     def __xor__(self, other):
+        original = self
+
         class NewRule(Rule):
+            n_voices = original._combine_n_voices(other)
+
             def logic(self, *args, **kwargs):
-                return self(*args, **kwargs) != other(*args, **kwargs)
+                return original(*args, **kwargs) != other(*args, **kwargs)
 
         return NewRule()
 
     def __invert__(self):
+        original = self
+
         class NewRule(Rule):
+            n_voices = original.n_voices
+
             def logic(self, *args, **kwargs):
-                return not self(*args, **kwargs)
+                return not original(*args, **kwargs)
 
         return NewRule()
 
